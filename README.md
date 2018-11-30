@@ -1,6 +1,6 @@
 ![](https://cdn.glitch.com/11a0c148-90ca-40b0-9212-4530b9aae97f%2FScreen%20Shot%202018-11-29%20at%2010.58.22%20AM.png?1543517921223)
 
-# Ok Google Talk to Panaman Surf Report
+# Ok Google Talk to "Panama Surf Report"
 
 ### This is an ction on google to get surf reports from Panama best locations
 
