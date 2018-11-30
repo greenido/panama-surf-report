@@ -8,7 +8,7 @@
 
 // init project pkgs
 const express = require('express');
-const ApiAiAssistant = require('actions-on-google').ApiAiAssistant;
+const {dialogflow} = require('actions-on-google');
 const bodyParser = require('body-parser');
 const request = require('request');
 const app = express();
@@ -30,95 +30,92 @@ app.get("/", function (request, response) {
 // Calling GA to make sure how many invocations we had on this skill
 const GAurl = "https://ga-beacon.appspot.com/UA-65622529-1/panama-surf-report-glitch-server/?pixel=0";
 request.get(GAurl, (error, response, body) => {
-  console.log(" - Called the GA - " + new Date());
+  console.log("👉🏼 Called the GA - " + new Date());
+});
+
+// Instantiate the Dialogflow client
+const appD = dialogflow({debug: false});
+appD.intent('actions.intent.CHECK_WATERSPORTS_CONDITIONS', (conv, {location}) => {
+  console.log('** Handling action: ' + LOCATION_ACTION + " on location: " + location);
+  // punta-palmar = 584204214e65fad6a7709bfb
+  // Venao = 584204204e65fad6a770913f
+  // punta rocas = 58581a836630e24c44878feb
+  if (location.indexOf("palmar") > -1 ||
+      location.indexOf("venao") > -1 ||
+      location.indexOf("rocas") > -1) {
+    return getSurfConditions(conv, location).then( (str) => {
+      console.log('then: ' + str);
+    });
+  }
+  else {
+    conv.close("At the moment we can give you the surf conditions for Punta Palmar, Playa Venao and Punta Rocas. Please choose one of these, ok?");
+  }
 });
 
 // Handle webhook requests
-app.post('/', function(req, res, next) {
-  
-  //logObject('Request headers: ', req.headers);
-  //logObject('Request body: ', req.body);
-    
-  // Instantiate a new API.AI assistant object.
-  const assistant = new ApiAiAssistant({request: req, response: res});
-  
-  const year = parseInt(assistant.getArgument('date-period'));
-  // Declare constants for your action and parameter names
-  const WINNER_ACTION = 'winner'; 
-  const currentYear = (new Date()).getFullYear();
-  logObject('Got year ' , year);
-  logObject('current year' , currentYear);
-  
+app.post('/', appD);
+const LOCATION_ACTION = 'surf-conditions'; 
+var spotId = "584204204e65fad6a770913f"; // venao is the default ;)
+
   // Create functions to handle intents here
-  function getWinner(assistant) {
-    console.log('** Handling action: ' + WINNER_ACTION);
-    if (year > 1979 && year <= currentYear) {
-      if (year == 2008) {
-        assistant.ask("The 2008 race was cancelled due to numerous wildfires. What other year do you wish to check?");
+  function getSurfConditions(assistant, location) {
+  console.log('** Handling action: ' + LOCATION_ACTION + " on location: " + location);
+    
+  return new Promise( function( resolve, reject ) {
+    // Surf info
+    if (location.indexOf("palmar") > -1) {
+      spotId = "584204214e65fad6a7709bfb";
+    }
+    else if (location.indexOf("rocas") > -1) {
+      spotId = "58581a836630e24c44878feb";
+    }
+    request({
+      url: "https://services.surfline.com/kbyg/spots/forecasts/wave?spotId=" + spotId + "&days=6&intervalHours=3",
+      json: true
+    }, function (error, response, data) {
+        if (!error && response.statusCode === 200) {
+          var surfMin = data.data.wave[0].surf.min;
+          var surfMax = data.data.wave[0].surf.max;
+          console.log("Surf min: "+ surfMin + " max: " + surfMax + " ==== " + location + " spotId: " + spotId);
+          
+          // weather
+          request({
+            url: "https://services.surfline.com/kbyg/spots/forecasts/weather?spotId=" + spotId + "&days=6&intervalHours=3",
+            json: true
+          }, function (error, response, data) {
+              var temp = data.data.weather[0].temperature;
+              console.log("temp: "+ temp);
+
+              // wind
+              request({
+                url: "https://services.surfline.com/kbyg/spots/forecasts/wind?spotId=" + spotId + "&days=6&intervalHours=3",
+                json: true
+              }, function (error, response, data) {
+                  if (!error && response.statusCode === 200) {
+                    var direction = data.data.wind[0].direction;
+                    var speed = data.data.wind[0].speed;
+                    console.log("* Wind direction: "+ direction + " speed: " + speed + "Surf min: "+ surfMin + " max: " + surfMax + "temp: "+ temp );
+                    var retStr = location + " surf is between " + surfMin + " feet and " +surfMax + " feet, the temperature is " +
+                                temp + " fahrenheit and the wind speed is " + speed + " in a direction of " +
+                                direction + " degrees. Do you wish to check another location?";
+                    assistant.ask(retStr);  
+                    resolve(retStr);
+                  }
+                else {
+                  assistant.close("Sorry cloud not get the surf report. Please come back later.");
+                  reject( console.log("reject err: "+ error) );
+                }
+            });  
+        });  
       }
       else {
-        let requestURL = 'http://www.wser.org/results/' + year + '-results/';
-        request(requestURL, function(error, response) {
-          if(error) {
-            console.log("--Got an error: " + error);
-            next(error);
-          } else {        
-            let resHtml = response.body;
-            let inx1 = resHtml.indexOf("<table") + 10;
-            let inx2 = resHtml.indexOf("row-2", inx1) + 10;
-            let inx3 = resHtml.indexOf("column-2", inx2) + 10;
-            let inx4 = resHtml.indexOf("</td>", inx3);
-            let winnerTime = resHtml.substring(inx3, inx4);
-
-            let inx5 = resHtml.indexOf("column-4", inx4) + 10;
-            let inx6 = resHtml.indexOf("</td>", inx5);
-            let winner = resHtml.substring(inx5, inx6);
-            let inx7 = resHtml.indexOf("column-5", inx6) + 10;
-            let inx8 = resHtml.indexOf("</td>", inx7);
-            let winnerLastName = resHtml.substring(inx7, inx8);
-            console.log("=== winner: " + winner + " " + winnerLastName + " time: " + winnerTime);
-            
-            if (winner.indexOf("<!DOCT") > 0) {
-              assistant.ask("Seems like the race hasn't take place yet! Please check later after June 23rd " + currentYear);
-            }
-            else {
-              let inx70 = resHtml.indexOf(">F<", inx6) - 180;
-              let inx73 = resHtml.indexOf("column-2", inx70) + 10;
-              let inx74 = resHtml.indexOf("</td>", inx73);
-              let femWinnerTime = resHtml.substring(inx73, inx74);
-
-              let inx75 = resHtml.indexOf("column-4", inx74) + 10;
-              let inx76 = resHtml.indexOf("</td>", inx75);
-              let femWinner = resHtml.substring(inx75, inx76);
-              let inx77 = resHtml.indexOf("column-5", inx76) + 10;
-              let inx78 = resHtml.indexOf("</td>", inx77);
-              let femWinnerLastName = resHtml.substring(inx77, inx78);
-              console.log("=== female winner: " + femWinner + " " + femWinnerLastName + " time: " + femWinnerTime);
-
-              // Respond to the user with the current winner. 
-              // Using 'ask' and not 'tell' as we don't wish to finish the conversation
-              assistant.ask("The winner for " + year + " is " + winner + " " + winnerLastName + " with time of " + winnerTime +
-                             " for male and " + femWinner + " " + femWinnerLastName + "  with time of " + femWinnerTime + " for female. What other year do you wish to check?");
-            }
-            
-          }
-        });
+         assistant.close("Sorry cloud not get the surf report. See you later.");
+        reject( console.log("reject err: "+ error) );
       }
-    }
-    else {
-      // Using 'ask' and not 'tell' as we don't wish to finish the conversation
-      assistant.ask("Sorry but there are no results for " + year + ". We have results from 1980 until " + currentYear + ". For which year do you wish to learn who is the winner?");
-    }
-    
-  }
-  
-  // Add handler functions to the action router.
-  let actionRouter = new Map();
-  actionRouter.set(WINNER_ACTION, getWinner);
-  
-  // Route requests to the proper handler functions via the action router.
-  assistant.handleRequest(actionRouter);
-});
+    });  
+  }); // permise
+}
+
 
 //
 // Handle errors
@@ -135,6 +132,7 @@ function logObject(message, object, options) {
   console.log(message);
   console.log(prettyjson.render(object, options));
 }
+
 
 //
 // Listen for requests -- Start the party
