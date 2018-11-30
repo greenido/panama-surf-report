@@ -54,22 +54,21 @@ appD.intent('actions.intent.CHECK_WATERSPORTS_CONDITIONS', (conv, {location}) =>
 
 // Handle webhook requests
 app.post('/', appD);
-  const LOCATION_ACTION = 'surf-conditions'; 
-  
+const LOCATION_ACTION = 'surf-conditions'; 
+var spotId = "584204204e65fad6a770913f"; // venao is the default ;)
+
   // Create functions to handle intents here
   function getSurfConditions(assistant, location) {
   console.log('** Handling action: ' + LOCATION_ACTION + " on location: " + location);
-  var spotId = "584204204e65fad6a770913f"; // venao is the default ;)
-  
-  if (location.indexOf("palmar") > -1) {
-    spotId = "584204214e65fad6a7709bfb";
-  }
-  else if (location.indexOf("rocas") > -1) {
-    spotId = "58581a836630e24c44878feb";
-  }
     
-  return new Promise( function( resolve, reject ){
+  return new Promise( function( resolve, reject ) {
     // Surf info
+    if (location.indexOf("palmar") > -1) {
+      spotId = "584204214e65fad6a7709bfb";
+    }
+    else if (location.indexOf("rocas") > -1) {
+      spotId = "58581a836630e24c44878feb";
+    }
     request({
       url: "https://services.surfline.com/kbyg/spots/forecasts/wave?spotId=" + spotId + "&days=6&intervalHours=3",
       json: true
@@ -77,7 +76,7 @@ app.post('/', appD);
         if (!error && response.statusCode === 200) {
           var surfMin = data.data.wave[0].surf.min;
           var surfMax = data.data.wave[0].surf.max;
-          console.log("Surf min: "+ surfMin + " max: " + surfMax + " ==== " + location);
+          console.log("Surf min: "+ surfMin + " max: " + surfMax + " ==== " + location + " spotId: " + spotId);
           
           // weather
           request({
@@ -96,7 +95,7 @@ app.post('/', appD);
                     var direction = data.data.wind[0].direction;
                     var speed = data.data.wind[0].speed;
                     console.log("* Wind direction: "+ direction + " speed: " + speed + "Surf min: "+ surfMin + " max: " + surfMax + "temp: "+ temp );
-                    var retStr = "The surf is between " + surfMin + " feet and " +surfMax + " feet, the temperature is " +
+                    var retStr = location + " surf is between " + surfMin + " feet and " +surfMax + " feet, the temperature is " +
                                 temp + " fahrenheit and the wind speed is " + speed + " in a direction of " +
                                 direction + " degrees. Do you wish to check another location?";
                     assistant.ask(retStr);  
