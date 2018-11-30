@@ -1,5 +1,14 @@
 ![](https://cdn.glitch.com/11a0c148-90ca-40b0-9212-4530b9aae97f%2FScreen%20Shot%202018-11-29%20at%2010.58.22%20AM.png?1543517921223)
-# Action on google to get surf reports from Panama best locations
+
+# Ok Google Talk to Panaman Surf Report
+
+### This is an ction on google to get surf reports from Panama best locations
+
+1. Punta Palmar
+2. Venao
+3. Punta Rocas
+
+...and more in the future 🏄🏻‍♂️
 
 
 ## Your Project
