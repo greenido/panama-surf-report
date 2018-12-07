@@ -2,7 +2,7 @@
 
 # Ok Google Talk to "Panama Surf Report"
 
-### This is an ction on google to get surf reports from Panama best locations
+This is an [action on google to get surf reports from Panama](https://assistant.google.com/services/a/uid/000000d2bbb02970?hl=en) best locations
 
 1. Punta Palmar
 2. Venao
